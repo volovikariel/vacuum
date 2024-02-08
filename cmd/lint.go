@@ -6,6 +6,12 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/daveshanley/vacuum/model"
+	"github.com/daveshanley/vacuum/motor"
+	"github.com/daveshanley/vacuum/rulesets"
+	"github.com/dustin/go-humanize"
+	"github.com/pterm/pterm"
+	"github.com/spf13/cobra"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -13,13 +19,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/daveshanley/vacuum/model"
-	"github.com/daveshanley/vacuum/motor"
-	"github.com/daveshanley/vacuum/rulesets"
-	"github.com/dustin/go-humanize"
-	"github.com/pterm/pterm"
-	"github.com/spf13/cobra"
 )
 
 func GetLintCommand() *cobra.Command {
