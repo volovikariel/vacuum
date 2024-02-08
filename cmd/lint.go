@@ -72,7 +72,12 @@ func GetLintCommand() *cobra.Command {
 				PrintBanner()
 			}
 
-			filesToLint := getFilesToLint(globPattern, args)
+			filesToLint, err := getFilesToLint(globPattern, args)
+			if err != nil {
+				pterm.Error.Printf("Error getting files to lint: %v\n", err)
+				pterm.Println()
+				return err
+			}
 			for _, file := range filesToLint {
 				// Verify that the each file has a valid extension
 				if !hasValidExtension(file, validFileExtensions) {
@@ -261,7 +266,7 @@ func GetLintCommand() *cobra.Command {
 	cmd.Flags().StringP("fail-severity", "n", model.SeverityError, "Results of this level or above will trigger a failure exit code")
 	cmd.Flags().Bool("ignore-array-circle-ref", false, "Ignore circular array references")
 	cmd.Flags().Bool("ignore-polymorph-circle-ref", false, "Ignore circular polymorphic references")
-	cmd.PersistentFlags().String("globbed-files", "", "Glob pattern of files to lint")
+	cmd.Flags().String("globbed-files", "", "Glob pattern of files to lint")
 
 	regErr := cmd.RegisterFlagCompletionFunc("category", cobra.FixedCompletions([]string{
 		model.CategoryAll,
@@ -590,11 +595,10 @@ func RenderSummary(rs *model.RuleResultSet, silent bool, totalFiles, fileIndex i
 
 }
 
-func getFilesToLint(globPattern string, filenames []string) []string {
+func getFilesToLint(globPattern string, filenames []string) ([]string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
-		pterm.Error.Println(err)
-		os.Exit(1)
+		return []string{}, err
 	}
 	// The user may pass in filenames (the args), a glob pattern, or both.
 	// We simply concatenate them together, and remove any duplicates we may find.
@@ -602,13 +606,11 @@ func getFilesToLint(globPattern string, filenames []string) []string {
 	for _, filename := range filenames {
 		absFilepath, err := filepath.Abs(filename)
 		if err != nil {
-			pterm.Error.Println(err)
-			os.Exit(1)
+			return []string{}, err
 		}
 		cleanedRelFilepath, err := filepath.Rel(dir, filepath.Clean(absFilepath))
 		if err != nil {
-			pterm.Error.Println(err)
-			os.Exit(1)
+			return []string{}, err
 		}
 		filesToLint = append(filesToLint, cleanedRelFilepath)
 	}
@@ -620,20 +622,17 @@ func getFilesToLint(globPattern string, filenames []string) []string {
 		globPattern = strings.TrimPrefix(globPattern, "/")
 		matches, err := filepath.Glob(globPattern)
 		if err != nil {
-			pterm.Error.Println(err)
-			os.Exit(1)
+			return []string{}, err
 		}
 		var relMatches []string
 		for _, match := range matches {
 			absMatch, err := filepath.Abs(match)
 			if err != nil {
-				pterm.Error.Println(err)
-				os.Exit(1)
+				return []string{}, err
 			}
 			cleanedRelFilepath, err := filepath.Rel(dir, filepath.Clean(absMatch))
 			if err != nil {
-				pterm.Error.Println(err)
-				os.Exit(1)
+				return []string{}, err
 			}
 			relMatches = append(relMatches, cleanedRelFilepath)
 		}
@@ -642,7 +641,7 @@ func getFilesToLint(globPattern string, filenames []string) []string {
 	}
 	filesToLint = deduplicate(filesToLint)
 
-	return filesToLint
+	return filesToLint, nil
 }
 
 func deduplicate(input []string) []string {
